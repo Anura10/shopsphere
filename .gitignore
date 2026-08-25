@@ -1,0 +1,28 @@
+# Go binaries
+*.exe
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Go temporary/build files
+*.tmp
+*.log
+
+# Frontend dependencies
+frontend/node_modules/
+
+# Frontend build output
+frontend/dist/
+
+# IDE / editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+generate_hash.go
