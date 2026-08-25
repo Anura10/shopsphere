@@ -7,6 +7,7 @@ function Cart() {
 
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
 
   const fetchCart = async () => {
@@ -17,8 +18,8 @@ function Cart() {
       const response = await cartAPI.get("/cart");
 
       setCart(
-        response.data.cart ||
-          response.data.data ||
+        response.data?.cart ||
+          response.data?.data ||
           response.data
       );
     } catch (err) {
@@ -41,11 +42,14 @@ function Cart() {
     productId,
     quantity
   ) => {
-    if (quantity <= 0) {
+    if (quantity < 1 || actionLoading) {
       return;
     }
 
     try {
+      setActionLoading(true);
+      setError("");
+
       await cartAPI.put(
         `/cart/items/${productId}`,
         {
@@ -55,47 +59,90 @@ function Cart() {
 
       await fetchCart();
     } catch (err) {
+      console.error(
+        "Failed to update quantity:",
+        err
+      );
+
       setError(
         err.response?.data?.message ||
           "Unable to update cart."
       );
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const removeItem = async (productId) => {
+    if (actionLoading) {
+      return;
+    }
+
     try {
+      setActionLoading(true);
+      setError("");
+
       await cartAPI.delete(
         `/cart/items/${productId}`
       );
 
       await fetchCart();
     } catch (err) {
+      console.error(
+        "Failed to remove item:",
+        err
+      );
+
       setError(
         err.response?.data?.message ||
           "Unable to remove item."
       );
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const clearCart = async () => {
+    if (actionLoading) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Are you sure you want to clear your cart?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
     try {
+      setActionLoading(true);
+      setError("");
+
       await cartAPI.delete("/cart");
 
       await fetchCart();
     } catch (err) {
+      console.error(
+        "Failed to clear cart:",
+        err
+      );
+
       setError(
         err.response?.data?.message ||
           "Unable to clear cart."
       );
+    } finally {
+      setActionLoading(false);
     }
   };
 
   if (loading) {
     return (
       <main className="cart-page">
-        <div className="loading-state">
-          Loading cart...
-        </div>
+        <section className="loading-state">
+          <p>Loading your cart...</p>
+        </section>
       </main>
     );
   }
@@ -103,21 +150,34 @@ function Cart() {
   if (error && !cart) {
     return (
       <main className="cart-page">
-        <div className="error-message">
-          {error}
-        </div>
+        <section className="error-state">
+          <h2>Unable to load cart</h2>
 
-        <button
-          type="button"
-          onClick={fetchCart}
-        >
-          Try Again
-        </button>
+          <p>{error}</p>
+
+          <button
+            type="button"
+            className="primary-button"
+            onClick={fetchCart}
+          >
+            Try Again
+          </button>
+        </section>
       </main>
     );
   }
 
   const items = cart?.items || [];
+
+  const totalItems = items.reduce(
+    (total, item) =>
+      total + Number(item.quantity || 0),
+    0
+  );
+
+  const cartTotal = Number(
+    cart?.total || 0
+  );
 
   return (
     <main className="cart-page">
@@ -141,11 +201,14 @@ function Cart() {
 
       {items.length === 0 ? (
         <section className="empty-state">
+          <div className="empty-cart-icon">
+            🛒
+          </div>
+
           <h2>Your cart is empty</h2>
 
           <p>
-            Add some products to your cart
-            before checking out.
+            You haven't added any products yet.
           </p>
 
           <Link
@@ -158,79 +221,101 @@ function Cart() {
       ) : (
         <section className="cart-layout">
           <div className="cart-items">
-            {items.map((item) => (
-              <article
-                className="cart-item"
-                key={item.product_id}
-              >
-                <div className="cart-item-info">
-                  <h2>
-                    {item.product_name ||
-                      item.name}
-                  </h2>
+            {items.map((item) => {
+              const productName =
+                item.product_name ||
+                item.name ||
+                "Product";
 
-                  <p>
-                    ₹
-                    {Number(
-                      item.product_price ||
-                        item.price ||
-                        item.unit_price ||
-                        0
-                    ).toFixed(2)}
-                    {" "}each
-                  </p>
-                </div>
+              const productPrice = Number(
+                item.product_price ||
+                  item.price ||
+                  item.unit_price ||
+                  0
+              );
 
-                <div className="cart-item-actions">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateQuantity(
-                        item.product_id,
-                        item.quantity - 1
-                      )
-                    }
-                    disabled={item.quantity <= 1}
-                  >
-                    −
-                  </button>
+              const quantity = Number(
+                item.quantity || 0
+              );
 
-                  <span>
-                    {item.quantity}
-                  </span>
+              const subtotal = Number(
+                item.subtotal ||
+                  productPrice * quantity
+              );
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateQuantity(
-                        item.product_id,
-                        item.quantity + 1
-                      )
-                    }
-                  >
-                    +
-                  </button>
+              return (
+                <article
+                  className="cart-item"
+                  key={item.product_id}
+                >
+                  <div className="cart-item-info">
+                    <h2>{productName}</h2>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      removeItem(
-                        item.product_id
-                      )
-                    }
-                  >
-                    Remove
-                  </button>
-                </div>
+                    <p>
+                      ₹
+                      {productPrice.toFixed(2)}
+                      {" "}each
+                    </p>
+                  </div>
 
-                <strong>
-                  ₹
-                  {Number(
-                    item.subtotal || 0
-                  ).toFixed(2)}
-                </strong>
-              </article>
-            ))}
+                  <div className="cart-item-actions">
+                    <div className="quantity-control">
+                      <button
+                        type="button"
+                        aria-label={`Decrease quantity of ${productName}`}
+                        onClick={() =>
+                          updateQuantity(
+                            item.product_id,
+                            quantity - 1
+                          )
+                        }
+                        disabled={
+                          quantity <= 1 ||
+                          actionLoading
+                        }
+                      >
+                        −
+                      </button>
+
+                      <span>
+                        {quantity}
+                      </span>
+
+                      <button
+                        type="button"
+                        aria-label={`Increase quantity of ${productName}`}
+                        onClick={() =>
+                          updateQuantity(
+                            item.product_id,
+                            quantity + 1
+                          )
+                        }
+                        disabled={actionLoading}
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="remove-button"
+                      onClick={() =>
+                        removeItem(
+                          item.product_id
+                        )
+                      }
+                      disabled={actionLoading}
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <strong className="item-subtotal">
+                    ₹{subtotal.toFixed(2)}
+                  </strong>
+                </article>
+              );
+            })}
           </div>
 
           <aside className="cart-summary">
@@ -239,23 +324,24 @@ function Cart() {
             <div className="summary-row">
               <span>Items</span>
 
+              <span>{totalItems}</span>
+            </div>
+
+            <div className="summary-row">
+              <span>Subtotal</span>
+
               <span>
-                {items.reduce(
-                  (total, item) =>
-                    total + item.quantity,
-                  0
-                )}
+                ₹{cartTotal.toFixed(2)}
               </span>
             </div>
+
+            <div className="summary-divider" />
 
             <div className="summary-row total-row">
               <span>Total</span>
 
               <strong>
-                ₹
-                {Number(
-                  cart?.total || 0
-                ).toFixed(2)}
+                ₹{cartTotal.toFixed(2)}
               </strong>
             </div>
 
@@ -265,6 +351,7 @@ function Cart() {
               onClick={() =>
                 navigate("/checkout")
               }
+              disabled={actionLoading}
             >
               Proceed to Checkout
             </button>
@@ -273,6 +360,7 @@ function Cart() {
               type="button"
               className="secondary-button"
               onClick={clearCart}
+              disabled={actionLoading}
             >
               Clear Cart
             </button>
@@ -281,7 +369,7 @@ function Cart() {
               to="/products"
               className="continue-shopping"
             >
-              Continue Shopping
+              ← Continue Shopping
             </Link>
           </aside>
         </section>

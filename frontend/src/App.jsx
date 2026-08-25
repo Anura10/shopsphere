@@ -4,13 +4,15 @@ import {
   Route,
   Routes,
 } from "react-router-dom";
-import Orders from "./pages/Orders";
+
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Products from "./pages/Products";
 import ProductDetails from "./pages/ProductDetails";
 import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import Orders from "./pages/Orders";
 
 import Navbar from "./components/Navbar";
 
@@ -111,12 +113,7 @@ function App() {
           path="/checkout"
           element={
             <ProtectedRoute>
-              <div>
-                <h1>Checkout</h1>
-                <p>
-                  Checkout page coming next.
-                </p>
-              </div>
+              <Checkout />
             </ProtectedRoute>
           }
         />
@@ -129,14 +126,7 @@ function App() {
           path="/orders"
           element={
             <ProtectedRoute>
-              <Route
-  path="/orders"
-  element={
-    <ProtectedRoute>
-      <Orders />
-    </ProtectedRoute>
-  }
-/>
+              <Orders />
             </ProtectedRoute>
           }
         />
