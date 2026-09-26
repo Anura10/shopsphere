@@ -49,6 +49,36 @@ func main() {
 
 	// Router
 	router := gin.Default()
+	router.Use(func(c *gin.Context) {
+	origin := c.GetHeader("Origin")
+
+	if origin == "http://localhost:5173" ||
+		origin == "http://localhost:5174" {
+		c.Header("Access-Control-Allow-Origin", origin)
+	}
+
+	c.Header(
+		"Access-Control-Allow-Credentials",
+		"true",
+	)
+
+	c.Header(
+		"Access-Control-Allow-Headers",
+		"Origin, Content-Type, Accept, Authorization",
+	)
+
+	c.Header(
+		"Access-Control-Allow-Methods",
+		"GET, POST, PUT, PATCH, DELETE, OPTIONS",
+	)
+
+	if c.Request.Method == http.MethodOptions {
+		c.AbortWithStatus(http.StatusNoContent)
+		return
+	}
+
+	c.Next()
+})
 
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
